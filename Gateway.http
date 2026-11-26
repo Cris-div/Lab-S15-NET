@@ -1,0 +1,116 @@
+# Todas las pruebas entran por el API Gateway (puerto 5000).
+# Inicia los 3 servicios antes: Veterinaria.Api (5055), CitasApi (5056) y GatewayApi (5000).
+@gateway = http://localhost:5000
+@citasDirecto = http://localhost:5056
+
+### 1. Login como Veterinario por el gateway (200)
+# @name loginVet
+POST {{gateway}}/gateway/auth/login
+Content-Type: application/json
+
+{
+  "correo": "veterinario@vet.local",
+  "clave": "VetS14-Admin123!"
+}
+
+### 2. Login como Recepcionista por el gateway (200)
+# @name loginRecep
+POST {{gateway}}/gateway/auth/login
+Content-Type: application/json
+
+{
+  "correo": "recepcion@vet.local",
+  "clave": "RecepS14-User123!"
+}
+
+@tokenVet = {{loginVet.response.body.token}}
+@tokenRecep = {{loginRecep.response.body.token}}
+
+### 3. Listar mascotas: ruta publica sin token (200)
+GET {{gateway}}/gateway/mascotas
+
+### 4. Obtener mascota existente sin token (200)
+GET {{gateway}}/gateway/mascotas/1
+
+### 5. Obtener mascota inexistente (404)
+GET {{gateway}}/gateway/mascotas/999
+
+### 6. Crear mascota SIN token: rechazado por el gateway (401)
+POST {{gateway}}/gateway/mascotas
+Content-Type: application/json
+
+{
+  "nombre": "Toby",
+  "especie": "Perro",
+  "edad": 4,
+  "peso": 14.5,
+  "propietarioId": 1
+}
+
+### 7. Crear mascota con rol Recepcionista: gateway valida token, Veterinaria.Api rechaza rol (403)
+POST {{gateway}}/gateway/mascotas
+Content-Type: application/json
+Authorization: Bearer {{tokenRecep}}
+
+{
+  "nombre": "Toby",
+  "especie": "Perro",
+  "edad": 4,
+  "peso": 14.5,
+  "propietarioId": 1
+}
+
+### 8. Crear mascota con rol Veterinario (201)
+# @name crearMascota
+POST {{gateway}}/gateway/mascotas
+Content-Type: application/json
+Authorization: Bearer {{tokenVet}}
+
+{
+  "nombre": "Toby",
+  "especie": "Perro",
+  "edad": 4,
+  "peso": 14.5,
+  "propietarioId": 1
+}
+
+@mascotaCreadaId = {{crearMascota.response.body.id}}
+
+### 9. Actualizar mascota creada con rol Veterinario (204)
+PUT {{gateway}}/gateway/mascotas/{{mascotaCreadaId}}
+Content-Type: application/json
+Authorization: Bearer {{tokenVet}}
+
+{
+  "nombre": "Toby Actualizado",
+  "especie": "Perro",
+  "edad": 5,
+  "peso": 15.2,
+  "propietarioId": 1
+}
+
+### 10. Eliminar mascota creada con rol Veterinario (204)
+DELETE {{gateway}}/gateway/mascotas/{{mascotaCreadaId}}
+Authorization: Bearer {{tokenVet}}
+
+### 11. Listar citas (microservicio 2) SIN token por el gateway (401)
+GET {{gateway}}/gateway/citas
+
+### 12. Listar citas (microservicio 2) CON token por el gateway (200)
+GET {{gateway}}/gateway/citas
+Authorization: Bearer {{tokenVet}}
+
+### 13. Obtener cita por id CON token por el gateway (200)
+GET {{gateway}}/gateway/citas/1
+Authorization: Bearer {{tokenVet}}
+
+### 14. Obtener cita inexistente CON token por el gateway (404)
+GET {{gateway}}/gateway/citas/999
+Authorization: Bearer {{tokenVet}}
+
+### 15. Llamada DIRECTA a CitasApi sin token (verifica defensa en profundidad: 401)
+GET {{citasDirecto}}/api/citas
+
+### 16. Deten CitasApi y repite GET /gateway/citas con token -> 502 Bad Gateway
+GET {{gateway}}/gateway/citas
+Authorization: Bearer {{tokenVet}}

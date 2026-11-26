@@ -1,0 +1,127 @@
+@host = http://localhost:5164
+
+### Login veterinario. Clave de demostración: VetS14-Admin123!
+# @name loginVet
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "veterinario@vet.local",
+  "clave": "VetS14-Admin123!"
+}
+
+### Login recepcionista. Clave de demostración: RecepS14-User123!
+# @name loginRecepcion
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "recepcion@vet.local",
+  "clave": "RecepS14-User123!"
+}
+
+### Login inválido: 401
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "desconocido@vet.local",
+  "clave": "incorrecta"
+}
+
+### Datos inválidos: 400
+POST {{host}}/api/auth/registro
+Content-Type: application/json
+
+{
+  "correo": "correo-invalido",
+  "clave": "corta"
+}
+
+### Registro público: 201; el rol siempre será Recepcionista
+POST {{host}}/api/auth/registro
+Content-Type: application/json
+
+{
+  "correo": "nueva.recepcion@vet.local",
+  "clave": "Recepcion2026!"
+}
+
+### Correo repetido: 409
+POST {{host}}/api/auth/registro
+Content-Type: application/json
+
+{
+  "correo": "recepcion@vet.local",
+  "clave": "Recepcion2026!"
+}
+
+### Perfil: 200
+GET {{host}}/api/auth/perfil
+Authorization: Bearer {{loginVet.response.body.token}}
+
+### Consulta con token: 200
+GET {{host}}/api/mascotas
+Authorization: Bearer {{loginVet.response.body.token}}
+
+### Consulta protegida sin token: 401
+GET {{host}}/api/mascotas
+
+### Rol incorrecto para crear mascota: 403
+POST {{host}}/api/mascotas
+Authorization: Bearer {{loginRecepcion.response.body.token}}
+Content-Type: application/json
+
+{
+  "nombre": "Nube S14",
+  "especie": "Gato",
+  "edad": 2,
+  "peso": 4.25,
+  "propietarioId": 1
+}
+
+### Crear mascota como veterinario: 201
+# @name crearMascota
+POST {{host}}/api/mascotas
+Authorization: Bearer {{loginVet.response.body.token}}
+Content-Type: application/json
+
+{
+  "nombre": "Nube S14",
+  "especie": "Gato",
+  "edad": 2,
+  "peso": 4.25,
+  "propietarioId": 1
+}
+
+### Actualizar mascota creada: 204
+PUT {{host}}/api/mascotas/{{crearMascota.response.body.id}}
+Authorization: Bearer {{loginVet.response.body.token}}
+Content-Type: application/json
+
+{
+  "nombre": "Nube S14",
+  "especie": "Gato",
+  "edad": 3,
+  "peso": 4.5,
+  "propietarioId": 1
+}
+
+### Mascota inexistente: 404
+GET {{host}}/api/mascotas/999999
+Authorization: Bearer {{loginVet.response.body.token}}
+
+### Eliminar mascota creada: 204
+DELETE {{host}}/api/mascotas/{{crearMascota.response.body.id}}
+Authorization: Bearer {{loginVet.response.body.token}}
+
+### Propietario duplicado: 409
+POST {{host}}/api/propietarios
+Authorization: Bearer {{loginRecepcion.response.body.token}}
+Content-Type: application/json
+
+{
+  "nombre": "Documento duplicado",
+  "documento": "12345678",
+  "telefono": "900000000"
+}
